@@ -290,7 +290,7 @@
         \tau_t
         =
         \operatorname{median}(\ell_t)
-        c\,\operatorname{MAD}(\ell_t).
+        + c\,\operatorname{MAD}(\ell_t).
         \]
       </div>
       <p>The moving-block-bootstrap alternative resamples time-series blocks to preserve short-range dependence and uses an upper quantile of bootstrap persistence.</p>
@@ -440,7 +440,7 @@
         \widehat\Sigma_t^{\mathrm{shrunk}}
         =
         (1-\rho_t)\widehat\Sigma_t
-        \rho_t\operatorname{diag}(\widehat\Sigma_t)
+        + \rho_t\operatorname{diag}(\widehat\Sigma_t)
         +\delta I.
         \]
       </div>
