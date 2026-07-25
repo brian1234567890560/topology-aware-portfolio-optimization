@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mathematics · Topology-Aware Portfolio Optimization</title>
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']],
+        processEscapes: true
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #5d6d7e;
+      --paper: #f7f9fb;
+      --card: #ffffff;
+      --blue: #154360;
+      --cyan: #148f77;
+      --gold: #b9770e;
+      --line: #d5d8dc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.7 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      color: white;
+      background: linear-gradient(125deg, #0b2638, var(--blue) 58%, var(--cyan));
+      padding: 54px 24px 46px;
+    }
+    header div, main { max-width: 1050px; margin: auto; }
+    .back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #d5f5e3;
+      text-decoration: none;
+    }
+    .back:hover { text-decoration: underline; }
+    h1 {
+      max-width: 850px;
+      margin: 0 0 12px;
+      font-size: clamp(2.1rem, 5vw, 3.8rem);
+      line-height: 1.08;
+    }
+    header p {
+      max-width: 780px;
+      margin: 0;
+      color: #eaf2f8;
+      font-size: 1.12rem;
+    }
+    main { padding: 38px 24px 72px; }
+    nav {
+      padding: 20px 22px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 6px 20px rgba(23,32,42,.05);
+    }
+    nav strong { color: var(--blue); }
+    nav ol {
+      columns: 2;
+      column-gap: 40px;
+      margin: 12px 0 0;
+      padding-left: 22px;
+    }
+    nav li { margin: 4px 0; break-inside: avoid; }
+    nav a { color: var(--cyan); text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    section {
+      margin-top: 28px;
+      padding: 26px 30px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 6px 20px rgba(23,32,42,.04);
+    }
+    h2 {
+      margin: 0 0 14px;
+      color: var(--blue);
+      font-size: 1.65rem;
+      line-height: 1.25;
+    }
+    h3 { margin: 24px 0 8px; color: var(--cyan); }
+    p { margin: 10px 0; }
+    li { margin: 6px 0; }
+    .equation {
+      margin: 18px 0;
+      padding: 14px 18px;
+      overflow-x: auto;
+      border-left: 4px solid var(--gold);
+      border-radius: 8px;
+      background: #fbfcfc;
+    }
+    .note {
+      padding: 14px 18px;
+      border-radius: 8px;
+      background: #eafaf1;
+      color: #145a32;
+    }
+    code {
+      padding: .15em .35em;
+      border-radius: 5px;
+      background: #eaecee;
+    }
+    footer {
+      color: var(--muted);
+      margin-top: 42px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 680px) {
+      nav ol { columns: 1; }
+      section { padding: 22px 18px; }
+      .equation { padding: 12px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <a class="back" href="../index.html">← Project home</a>
+      <h1>Mathematics and Model Structure</h1>
+      <p>The complete mathematical formulation implemented in the topology-aware portfolio research notebook.</p>
+    </div>
+  </header>
+
+  <main>
+    <nav aria-label="Mathematics sections">
+      <strong>Contents</strong>
+      <ol>
+        <li><a href="#information-timing">Information timing</a></li>
+        <li><a href="#point-clouds">Market-state point clouds</a></li>
+        <li><a href="#persistent-homology">Persistent homology</a></li>
+        <li><a href="#wasserstein">Wasserstein distance</a></li>
+        <li><a href="#mmd">Maximum mean discrepancy</a></li>
+        <li><a href="#combined-distance">Combined geometry</a></li>
+        <li><a href="#k-medoids">K-medoids clustering</a></li>
+        <li><a href="#efficient-frontier">Efficient-frontier diagnostic</a></li>
+        <li><a href="#optimization">Regime-aware optimization</a></li>
+        <li><a href="#walk-forward">Walk-forward returns and costs</a></li>
+        <li><a href="#metrics">Evaluation metrics</a></li>
+        <li><a href="#hypothesis">Research hypothesis</a></li>
+      </ol>
+    </nav>
+
+    <section id="information-timing">
+      <h2>1. Information timing</h2>
+      <p>Let \(P_{i,t}>0\) be the adjusted closing price of asset \(i\) at time \(t\). Its log return is</p>
+      <div class="equation">
+        \[
+        r_{i,t}
+        =
+        \log\!\left(\frac{P_{i,t}}{P_{i,t-1}}\right).
+        \]
+      </div>
+      <p>At rebalance date \(t\), every estimator must be measurable with respect to the available information</p>
+      <div class="equation">
+        \[
+        \mathcal F_t
+        =
+        \sigma\!\left(\left\{r_{i,s}:s<t,\ i=1,\ldots,n\right\}\right).
+        \]
+      </div>
+      <p class="note">The weights selected at \(t\) may be applied only to returns at \(t\) and later. This is the core no-look-ahead condition.</p>
+    </section>
+
+    <section id="point-clouds">
+      <h2>2. Market-state point clouds</h2>
+      <p>Choose \(m\) broad market indices. One trading day is represented by the vector</p>
+      <div class="equation">
+        \[
+        \mathbf x_s
+        =
+        \begin{bmatrix}
+        r_{1,s}\\
+        \vdots\\
+        r_{m,s}
+        \end{bmatrix}
+        \in \mathbb R^m.
+        \]
+      </div>
+      <p>The trailing point cloud at rebalance \(t\) is</p>
+      <div class="equation">
+        \[
+        X_t
+        =
+        \left\{\mathbf x_{t-L},\ldots,\mathbf x_{t-1}\right\}.
+        \]
+      </div>
+      <p>The vertices are trading days; their coordinates are simultaneous market returns.</p>
+
+      <h3>Robust scaling</h3>
+      <p>For coordinate \(q\), the median absolute deviation is</p>
+      <div class="equation">
+        \[
+        \operatorname{MAD}_q
+        =
+        \operatorname{median}_s
+        \left|
+        x_{s,q}-\operatorname{median}_u(x_{u,q})
+        \right|.
+        \]
+      </div>
+      <p>The robustly standardized coordinate is</p>
+      <div class="equation">
+        \[
+        \widetilde x_{s,q}
+        =
+        \frac{x_{s,q}-\operatorname{median}_u(x_{u,q})}
+        {1.4826\,\operatorname{MAD}_q+\varepsilon_{\mathrm{num}}}.
+        \]
+      </div>
+    </section>
+
+    <section id="persistent-homology">
+      <h2>3. Vietoris–Rips persistent homology</h2>
+      <p>For a metric space \((X_t,d)\) and distance threshold \(\epsilon\), the Vietoris–Rips complex is</p>
+      <div class="equation">
+        \[
+        \operatorname{VR}_{\epsilon}(X_t)
+        =
+        \left\{
+        \sigma\subseteq X_t:
+        d(\mathbf x,\mathbf y)\leq\epsilon
+        \text{ for every }\mathbf x,\mathbf y\in\sigma
+        \right\}.
+        \]
+      </div>
+      <p>As the distance threshold increases, the complexes form a filtration:</p>
+      <div class="equation">
+        \[
+        \operatorname{VR}_{\epsilon_1}(X_t)
+        \subseteq
+        \operatorname{VR}_{\epsilon_2}(X_t)
+        \subseteq\cdots .
+        \]
+      </div>
+      <p>The first homology group is</p>
+      <div class="equation">
+        \[
+        H_1
+        =
+        \frac{\ker(\partial_1)}{\operatorname{im}(\partial_2)}.
+        \]
+      </div>
+      <ul>
+        <li>\(\ker(\partial_1)\) contains closed one-dimensional cycles.</li>
+        <li>\(\operatorname{im}(\partial_2)\) contains cycles that are boundaries of filled triangles.</li>
+        <li>The quotient retains cycles that are not already filled by two-dimensional simplices.</li>
+      </ul>
+      <p>The first-homology persistence diagram is</p>
+      <div class="equation">
+        \[
+        D_t^{(1)}
+        =
+        \left\{(b_{j,t},d_{j,t})\right\}_{j=1}^{N_t},
+        \qquad
+        \ell_{j,t}=d_{j,t}-b_{j,t}.
+        \]
+      </div>
+
+      <h3>Topological noise threshold</h3>
+      <p>Short-lived loops are filtered from the diagram:</p>
+      <div class="equation">
+        \[
+        D_{t,\mathrm{signal}}^{(1)}
+        =
+        \left\{
+        (b_{j,t},d_{j,t})\in D_t^{(1)}:
+        \ell_{j,t}>\tau_t
+        \right\}.
+        \]
+      </div>
+      <p>For the robust threshold,</p>
+      <div class="equation">
+        \[
+        \tau_t
+        =
+        \operatorname{median}(\ell_t)
+        c\,\operatorname{MAD}(\ell_t).
+        \]
+      </div>
+      <p>The moving-block-bootstrap alternative resamples time-series blocks to preserve short-range dependence and uses an upper quantile of bootstrap persistence.</p>
+      <p>The code summarizes surviving loops with</p>
+      <div class="equation">
+        \[
+        P_{2,t}
+        =
+        \left(
+        \sum_{j:\ell_{j,t}>\tau_t}\ell_{j,t}^2
+        \right)^{1/2}.
+        \]
+      </div>
+      <p>An expanding robust z-score converts \(P_{2,t}\) into the regime score \(R_t\).</p>
+    </section>
+
+    <section id="wasserstein">
+      <h2>4. Wasserstein asset distance</h2>
+      <p>Let \(\mu_i\) and \(\mu_j\) be empirical trailing return distributions for assets \(i\) and \(j\). Their \(p\)-Wasserstein distance is</p>
+      <div class="equation">
+        \[
+        W_p(\mu_i,\mu_j)
+        =
+        \left[
+        \inf_{\gamma\in\Pi(\mu_i,\mu_j)}
+        \int |x-y|^p\,d\gamma(x,y)
+        \right]^{1/p}.
+        \]
+      </div>
+      <p>\(\Pi(\mu_i,\mu_j)\) is the set of joint probability measures with marginals \(\mu_i\) and \(\mu_j\). The current code applies one-dimensional Wasserstein distance to standardized trailing returns.</p>
+    </section>
+
+    <section id="mmd">
+      <h2>5. Maximum mean discrepancy</h2>
+      <p>For a positive-definite kernel \(k\) with feature map \(\phi\), maximum mean discrepancy is</p>
+      <div class="equation">
+        \[
+        \operatorname{MMD}_k^2(P,Q)
+        =
+        \left\|
+        \mathbb E_{X\sim P}[\phi(X)]
+        -
+        \mathbb E_{Y\sim Q}[\phi(Y)]
+        \right\|_{\mathcal H}^{2}.
+        \]
+      </div>
+      <p>Equivalently,</p>
+      <div class="equation">
+        \[
+        \operatorname{MMD}_k^2(P,Q)
+        =
+        \mathbb E[k(X,X')]
+        +
+        \mathbb E[k(Y,Y')]
+        -
+        2\mathbb E[k(X,Y)].
+        \]
+      </div>
+      <p>The notebook uses a Gaussian radial-basis-function kernel and a median-distance bandwidth heuristic.</p>
+    </section>
+
+    <section id="combined-distance">
+      <h2>6. Combined distributional geometry</h2>
+      <p>After scaling the Wasserstein and MMD matrices to comparable ranges, the combined distance is</p>
+      <div class="equation">
+        \[
+        D_{ij}
+        =
+        \alpha\,\widetilde W_{ij}
+        +(1-\alpha)\,\widetilde M_{ij},
+        \qquad 0\leq\alpha\leq1.
+        \]
+      </div>
+      <p>The current default is \(\alpha=0.65\).</p>
+    </section>
+
+    <section id="k-medoids">
+      <h2>7. K-medoids clustering</h2>
+      <p>For clusters \(C_1,\ldots,C_K\) and observed medoids \(m_1,\ldots,m_K\), K-medoids minimizes</p>
+      <div class="equation">
+        \[
+        \min_{\{C_k,m_k\}}
+        \sum_{k=1}^{K}
+        \sum_{i\in C_k}
+        D_{i,m_k}.
+        \]
+      </div>
+      <p>Unlike Euclidean K-means, this method needs only a distance matrix. Each medoid is an actual asset, which makes every cluster representative directly interpretable.</p>
+    </section>
+
+    <section id="efficient-frontier">
+      <h2>8. Efficient-frontier diagnostic</h2>
+      <p>Let \(\widehat{\boldsymbol\mu}\) and \(\widehat\Sigma\) be annualized moment estimates. For target return \(r_\star\), solve</p>
+      <div class="equation">
+        \[
+        \begin{aligned}
+        \min_{\mathbf w}\quad&
+        \mathbf w^\top\widehat\Sigma\mathbf w\\
+        \text{subject to}\quad&
+        \mathbf w^\top\widehat{\boldsymbol\mu}\geq r_\star,\\
+        &\mathbf 1^\top\mathbf w=1,\\
+        &\mathbf w\geq\mathbf 0.
+        \end{aligned}
+        \]
+      </div>
+      <p>For baseline and expanded universes, define</p>
+      <div class="equation">
+        \[
+        \Delta\sigma(r_\star)
+        =
+        \sigma_{\mathrm{base}}(r_\star)
+        -
+        \sigma_{\mathrm{expanded}}(r_\star).
+        \]
+      </div>
+      <p>Positive \(\Delta\sigma\) means the expanded universe reaches the target return with lower estimated volatility. This is a descriptive economic diagnostic, not yet a formal statistical spanning test.</p>
+    </section>
+
+    <section id="optimization">
+      <h2>9. Regime-aware portfolio optimization</h2>
+      <p>For the selected assets, the optimizer solves</p>
+      <div class="equation">
+        \[
+        \begin{aligned}
+        \mathbf w_t^\star\in\arg\min_{\mathbf w}\quad&
+        -\widehat{\boldsymbol\mu}_t^\top\mathbf w
+        +\gamma_t\mathbf w^\top\widehat\Sigma_t\mathbf w
+        +\eta\|\mathbf w-\mathbf w_{t-1}\|_1\\
+        \text{subject to}\quad&
+        \mathbf 1^\top\mathbf w=1,\\
+        &0\leq w_i\leq u_t.
+        \end{aligned}
+        \]
+      </div>
+      <p>The three objective terms reward estimated return, penalize estimated covariance risk, and penalize portfolio turnover.</p>
+      <p>Risk aversion changes with the topological regime score:</p>
+      <div class="equation">
+        \[
+        \gamma_t
+        =
+        \gamma_0\left(1+\beta\max\{R_t,0\}\right).
+        \]
+      </div>
+      <p>The covariance estimate is shrunk toward its diagonal:</p>
+      <div class="equation">
+        \[
+        \widehat\Sigma_t^{\mathrm{shrunk}}
+        =
+        (1-\rho_t)\widehat\Sigma_t
+        \rho_t\operatorname{diag}(\widehat\Sigma_t)
+        +\delta I.
+        \]
+      </div>
+      <p>Both \(\rho_t\) and the weight cap \(u_t\) become more conservative in stressed regimes.</p>
+    </section>
+
+    <section id="walk-forward">
+      <h2>10. Walk-forward returns and costs</h2>
+      <p>For holding-period day \(s\), the portfolio’s gross log return is</p>
+      <div class="equation">
+        \[
+        r_{p,s}^{\mathrm{gross}}
+        =
+        \mathbf w_t^\top\mathbf r_s.
+        \]
+      </div>
+      <p>The standard one-way turnover definition is</p>
+      <div class="equation">
+        \[
+        \operatorname{TO}_t
+        =
+        \frac12\|\mathbf w_t-\mathbf w_{t-1}\|_1.
+        \]
+      </div>
+      <p>If the proportional transaction-cost rate is \(c\), then</p>
+      <div class="equation">
+        \[
+        C_t=c\,\operatorname{TO}_t.
+        \]
+      </div>
+      <p class="note">The current implementation records the full \(L^1\) weight change and applies the configured basis-point cost to that quantity. This convention must be made consistent with the one-way definition before final empirical reporting.</p>
+    </section>
+
+    <section id="metrics">
+      <h2>11. Evaluation metrics</h2>
+      <p>Cumulative wealth from log returns is</p>
+      <div class="equation">
+        \[
+        V_t
+        =
+        \exp\!\left(\sum_{s=1}^{t}r_{p,s}\right).
+        \]
+      </div>
+      <p>For \(A=252\) trading days per year, annualized return and volatility are estimated as</p>
+      <div class="equation">
+        \[
+        \widehat\mu_{\mathrm{ann}}=A\overline r_p,
+        \qquad
+        \widehat\sigma_{\mathrm{ann}}=\sqrt A\,s(r_p).
+        \]
+      </div>
+      <p>The zero-risk-free-rate Sharpe estimate is</p>
+      <div class="equation">
+        \[
+        \widehat{\operatorname{SR}}
+        =
+        \sqrt A\,
+        \frac{\overline r_p}{s(r_p)}.
+        \]
+      </div>
+      <p>Drawdown is</p>
+      <div class="equation">
+        \[
+        \operatorname{DD}_t
+        =
+        \frac{V_t}{\max_{0\leq u\leq t}V_u}-1,
+        \qquad
+        \operatorname{MDD}
+        =
+        \min_t\operatorname{DD}_t.
+        \]
+      </div>
+    </section>
+
+    <section id="hypothesis">
+      <h2>12. Research hypothesis</h2>
+      <div class="equation">
+        \[
+        \begin{aligned}
+        H_0:\quad&
+        \text{topology-aware filtering and distribution-aware selection}\\
+        &\text{do not improve out-of-sample portfolio performance},\\[1mm]
+        H_1:\quad&
+        \text{they improve risk-adjusted performance or stability after costs}.
+        \end{aligned}
+        \]
+      </div>
+      <p>The hypothesis must be evaluated with preregistered metrics, causal model selection, and uncertainty estimates rather than a single favorable backtest.</p>
+    </section>
+
+    <footer>
+      <p>Educational research by Brian Hsieh. This project is not financial advice.</p>
+      <p><a href="../notebooks/research/topology_aware_portfolio_optimization.ipynb">Open the executable notebook</a> · <a href="mathematics.md">View the Markdown source</a></p>
+    </footer>
+  </main>
+</body>
+</html>
