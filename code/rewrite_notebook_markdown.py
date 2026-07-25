@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 
@@ -114,11 +115,7 @@ Let \(r_{i,s}\) denote the log return of asset \(i\) on day \(s\). At rebalance
 index \(t\), every estimator uses only the trailing information set
 
 \[
-\mathcal F_t
-=
-\sigma\!\left(
-\{r_{i,s}:s<t,\ i=1,\ldots,n\}
-\right).
+\mathcal F_t=\sigma(r_{i,s}\colon s<t,\ i=1,\ldots,n).
 \]
 
 In the code this is enforced by slices of the form
@@ -319,13 +316,8 @@ P_{2,t}
 The regime score compares the current summary with earlier summaries only:
 
 \[
-R_t
-=
-\frac{
-P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})
-}{
-1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})
-}.
+R_t=\frac{P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})}
+{1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})}.
 \]
 
 The code returns \(0\) until enough history exists and falls back to sample
@@ -717,6 +709,13 @@ The central question is
 }
 
 
+def github_math_delimiters(text: str) -> str:
+    """Use delimiters supported consistently by GitHub and Jupyter."""
+    text = re.sub(r"(?m)^\\\[$", "$$", text)
+    text = re.sub(r"(?m)^\\\]$", "$$", text)
+    return text.replace(r"\(", "$").replace(r"\)", "$")
+
+
 def source_lines(text: str) -> list[str]:
     lines = text.splitlines(keepends=True)
     if lines and not lines[-1].endswith("\n"):
@@ -729,7 +728,7 @@ for index, text in MARKDOWN.items():
     cell = notebook["cells"][index]
     if cell["cell_type"] != "markdown":
         raise ValueError(f"Cell {index} is not Markdown")
-    cell["source"] = source_lines(text)
+    cell["source"] = source_lines(github_math_delimiters(text))
 
 NOTEBOOK.write_text(
     json.dumps(notebook, ensure_ascii=False, indent=1) + "\n",
