@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from textwrap import dedent
 
@@ -7,11 +8,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OUT = PROJECT_ROOT / "notebooks" / "research" / "topology_aware_portfolio_optimization.ipynb"
 
 
+def github_math_delimiters(text):
+    """Use delimiters supported consistently by GitHub and Jupyter."""
+    text = re.sub(r"(?m)^\\\[$", "$$", text)
+    text = re.sub(r"(?m)^\\\]$", "$$", text)
+    return text.replace(r"\(", "$").replace(r"\)", "$")
+
+
 def md(text):
+    text = github_math_delimiters(dedent(text).strip())
     return {
         "cell_type": "markdown",
         "metadata": {},
-        "source": dedent(text).strip().splitlines(keepends=True),
+        "source": text.splitlines(keepends=True),
     }
 
 
