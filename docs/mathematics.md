@@ -15,9 +15,7 @@ r_{i,t}
 At rebalance date $t$, every estimator must be measurable with respect to the available information
 
 ```math
-\mathcal F_t
-=
-\sigma\left(\{r_{i,s}:s<t,\ i=1,\ldots,n\}\right).
+\mathcal F_t=\sigma(r_{i,s}\colon s<t,\ i=1,\ldots,n).
 ```
 
 The weights selected at $t$ may be applied only to returns at $t$ and later. This is the core no-look-ahead condition.
@@ -184,13 +182,8 @@ P_{2,t}
 An expanding robust z-score converts this into the regime score $R_t$.
 
 ```math
-R_t
-=
-\frac{
-P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})
-}{
-1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})
-}.
+R_t=\frac{P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})}
+{1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})}.
 ```
 
 The code uses only earlier $P_{2,u}$ values in the center and scale. It returns $0$ until there are at least six earlier observations and falls back to the sample standard deviation if historical MAD is nearly zero.
