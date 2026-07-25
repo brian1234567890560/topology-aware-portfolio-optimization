@@ -179,14 +179,36 @@ P_{2,t}
 \right)^{1/2}.
 ```
 
-An expanding robust z-score converts this into the regime score $R_t$.
+An expanding robust z-score converts this into the regime score $R_t$. First,
+use only the earlier persistence summaries to define the historical center
 
 ```math
-R_t=\frac{P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})}
-{1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})}.
+m_t
+=
+\mathrm{median}\!\left(P_{2,1},\ldots,P_{2,t-1}\right)
 ```
 
-The code uses only earlier $P_{2,u}$ values in the center and scale. It returns $0$ until there are at least six earlier observations and falls back to the sample standard deviation if historical MAD is nearly zero.
+and the corresponding historical MAD
+
+```math
+a_t
+=
+\mathrm{median}_{1\le u\le t-1}
+\left|P_{2,u}-m_t\right|.
+```
+
+Then the regime score is
+
+```math
+R_t
+=
+\frac{P_{2,t}-m_t}{1.4826\,a_t}.
+```
+
+This notation makes the causal timing explicit: neither $m_t$ nor $a_t$ uses
+the current value $P_{2,t}$. The code returns $0$ until there are at least six
+earlier observations and falls back to the sample standard deviation if
+$a_t$ is nearly zero.
 
 ## 4. Wasserstein asset distance
 
