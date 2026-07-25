@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Topology-Aware Portfolio Optimization</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #5d6d7e;
+      --paper: #f7f9fb;
+      --card: #ffffff;
+      --blue: #154360;
+      --cyan: #148f77;
+      --gold: #b9770e;
+      --line: #d5d8dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.65 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      color: white;
+      background: linear-gradient(125deg, #0b2638, var(--blue) 58%, var(--cyan));
+      padding: 72px 24px 64px;
+    }
+    header div, main { max-width: 1050px; margin: auto; }
+    h1 { max-width: 850px; margin: 0 0 12px; font-size: clamp(2.2rem, 6vw, 4.5rem); line-height: 1.05; }
+    header p { max-width: 780px; margin: 0; color: #eaf2f8; font-size: 1.18rem; }
+    .status {
+      display: inline-block;
+      margin-top: 22px;
+      padding: 7px 12px;
+      border: 1px solid rgba(255,255,255,.45);
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+    }
+    main { padding: 44px 24px 72px; }
+    h2 { margin-top: 44px; color: var(--blue); font-size: 1.75rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 6px 20px rgba(23,32,42,.05);
+    }
+    .card h3 { margin-top: 0; color: var(--cyan); }
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 10px;
+      padding: 0;
+      list-style: none;
+    }
+    .pipeline li {
+      position: relative;
+      padding: 18px 14px;
+      border-left: 4px solid var(--gold);
+      background: white;
+      border-radius: 8px;
+    }
+    code {
+      padding: .15em .35em;
+      border-radius: 5px;
+      background: #eaecee;
+    }
+    a { color: var(--cyan); }
+    footer { color: var(--muted); margin-top: 52px; padding-top: 24px; border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Topology-Aware Portfolio Optimization</h1>
+      <p>Persistent market topology, Wasserstein and MMD asset geometry, distribution-aware clustering, and causal regime-aware allocation.</p>
+      <span class="status">Implemented research pipeline · empirical validation in progress</span>
+    </div>
+  </header>
+  <main>
+    <h2>Research question</h2>
+    <div class="card">
+      Does persistent market topology plus distribution-aware asset selection produce more stable out-of-sample portfolios than conventional portfolio optimization?
+    </div>
+
+    <h2>Pipeline</h2>
+    <ol class="pipeline">
+      <li>Adjusted prices</li>
+      <li>Causal log returns</li>
+      <li>Persistent homology</li>
+      <li>Wasserstein + MMD</li>
+      <li>K-medoids selection</li>
+      <li>Regime-aware weights</li>
+      <li>Walk-forward test</li>
+    </ol>
+
+    <h2>Method structure</h2>
+    <div class="grid">
+      <section class="card">
+        <h3>Time geometry</h3>
+        <p>Rolling market-state point clouds are analyzed with Vietoris-Rips first persistent homology. Short-lived features are filtered, while surviving persistence forms a regime score.</p>
+      </section>
+      <section class="card">
+        <h3>Asset geometry</h3>
+        <p>Trailing empirical return distributions are compared through Wasserstein distance and maximum mean discrepancy.</p>
+      </section>
+      <section class="card">
+        <h3>Portfolio construction</h3>
+        <p>K-medoids selects representatives. A constrained optimizer adjusts risk aversion, covariance shrinkage, and weight caps using the causal regime score.</p>
+      </section>
+      <section class="card">
+        <h3>Evaluation</h3>
+        <p>A strict walk-forward engine deducts transaction costs and compares the full model with all-asset MVO, equal weighting, and SPY.</p>
+      </section>
+    </div>
+
+    <h2>Project files</h2>
+    <div class="grid">
+      <section class="card">
+        <h3>Notebook</h3>
+        <p><a href="notebooks/research/topology_aware_portfolio_optimization.ipynb">Open the complete Jupyter notebook</a>.</p>
+      </section>
+      <section class="card">
+        <h3>Mathematics</h3>
+        <p><a href="docs/mathematics.md">Read the full mathematical formulation</a>.</p>
+      </section>
+      <section class="card">
+        <h3>Evolution</h3>
+        <p><a href="docs/evolution.md">Follow the development history</a>.</p>
+      </section>
+      <section class="card">
+        <h3>Validation</h3>
+        <p><a href="docs/validation-and-limitations.md">Review validation requirements and limitations</a>.</p>
+      </section>
+    </div>
+
+    <h2>Current state</h2>
+    <p>The end-to-end software path is implemented. No final performance conclusion is claimed until fixed experiments, ablations, robustness tests, and uncertainty estimates are committed with their source outputs.</p>
+
+    <footer>
+      Educational research by Brian Hsieh. This project is not financial advice.
+    </footer>
+  </main>
+</body>
+</html>

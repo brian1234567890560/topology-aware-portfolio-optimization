@@ -1,0 +1,9 @@
+jupyterlab>=4.0
+matplotlib>=3.8
+numpy>=1.26
+pandas>=2.1
+ripser>=0.6.12
+scipy>=1.11
+seaborn>=0.13
+yfinance>=0.2.54
+

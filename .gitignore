@@ -1,0 +1,9 @@
+.ipynb_checkpoints/
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Generated outputs should be reviewed before committing.
+portfolio_outputs/
+
