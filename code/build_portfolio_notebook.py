@@ -3,7 +3,8 @@ from pathlib import Path
 from textwrap import dedent
 
 
-OUT = Path("/workspace/scratch/686f951bbed7/topology_aware_portfolio_optimization.ipynb")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+OUT = PROJECT_ROOT / "notebooks" / "research" / "topology_aware_portfolio_optimization.ipynb"
 
 
 def md(text):
@@ -410,7 +411,7 @@ cells = [
         MMD compares kernel mean embeddings:
 
         \[
-        \operatorname{MMD}^2(P_i,P_j)
+        \mathrm{MMD}^2(P_i,P_j)
         =\mathbb E[k(X,X')]+\mathbb E[k(Y,Y')]-2\mathbb E[k(X,Y)].
         \]
 
@@ -902,7 +903,8 @@ cells = [
         """
         def max_drawdown(series: pd.Series) -> float:
             wealth = np.exp(series.cumsum())
-            drawdown = wealth / wealth.cummax() - 1.0
+            running_peak = wealth.cummax().clip(lower=1.0)
+            drawdown = wealth / running_peak - 1.0
             return float(drawdown.min())
 
 
@@ -959,7 +961,8 @@ cells = [
     code(
         """
         wealth = np.exp(strategy_returns.cumsum())
-        drawdowns = wealth.div(wealth.cummax()).sub(1.0)
+        running_peaks = wealth.cummax().clip(lower=1.0)
+        drawdowns = wealth.div(running_peaks).sub(1.0)
 
         fig, axes = plt.subplots(2, 1, figsize=(13, 10), sharex=True)
         wealth.plot(ax=axes[0], lw=2)
