@@ -50,14 +50,13 @@ The current notebook contains 34 cells: 16 explanatory Markdown cells and 18 Pyt
 - [`notebooks/research`](notebooks/research) — the complete executable Jupyter notebook.
 - [`notebooks/PO01.md`](notebooks/PO01.md) — cell-by-cell guide to the current research notebook.
 - [`docs/evolution.md`](docs/evolution.md) — development history and the role of each method.
-- [`docs/mathematics.md`](docs/mathematics.md) — complete mathematical formulation.
+- [`docs/mathematics.md`](docs/mathematics.md) — complete mathematical formulation with GitHub-native rendered equations.
 - [`docs/validation-and-limitations.md`](docs/validation-and-limitations.md) — scientific cautions, validation plan, and known limitations.
 - [`docs/results.md`](docs/results.md) — result-reporting template; intentionally contains no invented performance claims.
 - [`code`](code) — scripts that generate and repair the notebook.
 - [`environment`](environment) — installation and reproducibility instructions.
 - [`assets/figures`](assets/figures) — destination for exported backtest and topology figures.
 - [`ORIGINAL_FILENAMES.md`](ORIGINAL_FILENAMES.md) — source-file manifest and SHA-256 provenance.
-- [`index.html`](index.html) — lightweight GitHub Pages presentation.
 
 ## Core methods
 
@@ -137,7 +136,7 @@ Generated data and figures should be committed only after the experiment configu
 
 ## Detailed references
 
-- Read [Mathematics and Model Structure](docs/mathematics.md) for the full rendered formulation.
+- Read [Mathematics and Model Structure](docs/mathematics.md) directly on GitHub for the full rendered formulation.
 - Read [Evolution of the Project](docs/evolution.md) for how the current method was assembled.
 - Read [Validation and Limitations](docs/validation-and-limitations.md) before interpreting any backtest.
 - Read [Notebook PO01](notebooks/PO01.md) for a cell-by-cell execution guide.
@@ -152,4 +151,3 @@ The next major tasks are:
 4. report moving-block-bootstrap confidence intervals;
 5. test alternate universes, rebalance frequencies, transaction costs, and crisis periods;
 6. compare the economic frontier diagnostic with a formal mean-variance spanning test.
-
