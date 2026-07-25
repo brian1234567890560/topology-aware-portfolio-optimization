@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 
 
-NOTEBOOK = Path("/workspace/scratch/686f951bbed7/topology_aware_portfolio_optimization.ipynb")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+NOTEBOOK = PROJECT_ROOT / "notebooks" / "research" / "topology_aware_portfolio_optimization.ipynb"
 
 
 MARKDOWN = {
@@ -189,31 +190,48 @@ simultaneous returns of the chosen indices.
 For coordinate \(q\), use its median and median absolute deviation:
 
 \[
-\operatorname{MAD}_q
+\mathrm{MAD}_q
 =
-\operatorname{median}_{s}
+\mathrm{median}_{s}
 \left|
-x_{s,q}-\operatorname{median}_{u}(x_{u,q})
+x_{s,q}-\mathrm{median}_{u}(x_{u,q})
 \right|.
 \]
 
-The robustly standardized coordinate is approximately
+Let \(s_q^{\mathrm{std}}\) be the sample standard deviation. The implemented
+scale is
+
+\[
+a_q
+=
+\begin{cases}
+1.4826\,\mathrm{MAD}_q,
+&1.4826\,\mathrm{MAD}_q>\varepsilon_{\mathrm{num}},\\
+s_q^{\mathrm{std}},
+&s_q^{\mathrm{std}}>\varepsilon_{\mathrm{num}},\\
+1,
+&\text{otherwise}.
+\end{cases}
+\]
+
+The robustly standardized coordinate is
 
 \[
 \widetilde x_{s,q}
 =
-\frac{x_{s,q}-\operatorname{median}_{u}(x_{u,q})}
-{1.4826\,\operatorname{MAD}_q+\varepsilon_{\mathrm{num}}},
+\frac{x_{s,q}-\mathrm{median}_{u}(x_{u,q})}
+{a_q}.
 \]
 
-where \(\varepsilon_{\mathrm{num}}>0\) prevents division by zero.
+The factor \(1.4826\) makes MAD comparable to standard deviation for Gaussian
+data.
 
 ### 4.3 Vietoris--Rips filtration and first homology
 
 For distance threshold \(\epsilon\), the Vietoris--Rips complex is
 
 \[
-\operatorname{VR}_{\epsilon}(X_t)
+\mathrm{VR}_{\epsilon}(X_t)
 =
 \left\{
 \sigma\subseteq X_t:
@@ -225,24 +243,24 @@ d(\mathbf x,\mathbf y)\le \epsilon
 Increasing \(\epsilon\) produces a filtration
 
 \[
-\operatorname{VR}_{\epsilon_1}(X_t)
+\mathrm{VR}_{\epsilon_1}(X_t)
 \subseteq
-\operatorname{VR}_{\epsilon_2}(X_t)
+\mathrm{VR}_{\epsilon_2}(X_t)
 \subseteq\cdots,
 \qquad
 \epsilon_1\le\epsilon_2\le\cdots.
 \]
 
-The first homology group is
+Using coefficients in \(\mathbb F_2\), the first homology group is
 
 \[
 H_1
 =
-\frac{\ker(\partial_1)}{\operatorname{im}(\partial_2)}.
+\frac{\ker(\partial_1)}{\mathrm{im}(\partial_2)}.
 \]
 
 Here, \(\ker(\partial_1)\) contains closed edge cycles, while
-\(\operatorname{im}(\partial_2)\) contains cycles that are merely boundaries of
+\(\mathrm{im}(\partial_2)\) contains cycles that are merely boundaries of
 filled triangles. Their quotient identifies genuine one-dimensional holes.
 
 The persistence diagram is
@@ -273,14 +291,47 @@ D_{t,\mathrm{signal}}^{(1)}
 \right\}.
 \]
 
-The threshold \(\tau_t\) is estimated robustly or by bootstrap. Importantly,
+In robust mode, the implemented threshold is
+
+\[
+\tau_t
+=
+\mathrm{median}(\ell_t)
++1.4826\,c\,\mathrm{MAD}(\ell_t),
+\]
+
+where \(c\) is `tda_noise_mad_multiplier`. In bootstrap mode, the threshold is
+the configured quantile of the largest finite lifetime across moving-block
+resamples. Importantly,
 this step filters **features in the persistence diagram**; it does not delete
 daily returns.
 
-The surviving persistence is summarized into a causal scalar \(R_t\). A larger
-\(R_t\) means that the recent market-state cloud contains stronger or more
-unusual persistent loop structure. This is a regime indicator, not automatically
-a crash prediction.
+The surviving lifetimes are summarized by
+
+\[
+P_{2,t}
+=
+\left(
+\sum_{j:\ell_{j,t}>\tau_t}\ell_{j,t}^{\,2}
+\right)^{1/2}.
+\]
+
+The regime score compares the current summary with earlier summaries only:
+
+\[
+R_t
+=
+\frac{
+P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})
+}{
+1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})
+}.
+\]
+
+The code returns \(0\) until enough history exists and falls back to sample
+standard deviation if historical MAD vanishes. A larger \(R_t\) means that the
+recent market-state cloud contains stronger or more unusual persistent loop
+structure. This is a regime indicator, not automatically a crash prediction.
 """,
 14: r"""## 5. Distributional asset geometry: Wasserstein distance and MMD
 
@@ -324,7 +375,7 @@ Let \(k\) be a positive-definite kernel with feature map \(\phi\) into a
 reproducing-kernel Hilbert space \(\mathcal H\). Then
 
 \[
-\operatorname{MMD}_k(P,Q)
+\mathrm{MMD}_k(P,Q)
 =
 \left\|
 \mathbb E_{X\sim P}[\phi(X)]
@@ -336,19 +387,23 @@ reproducing-kernel Hilbert space \(\mathcal H\). Then
 Its squared kernel form is
 
 \[
-\operatorname{MMD}_k^2(P,Q)
+\mathrm{MMD}_k^2(P,Q)
 =
 \mathbb E[k(X,X')]
 +\mathbb E[k(Y,Y')]
 -2\mathbb E[k(X,Y)].
 \]
 
+The code uses a Gaussian RBF kernel with pair-specific median-distance bandwidth
+and the biased empirical estimator (including kernel-matrix diagonal terms).
+It passes \(\sqrt{\max(\widehat{\mathrm{MMD}}^2,0)}\) to clustering.
+
 The corresponding asset-distance matrix is
 
 \[
 \left[D_t^{(M)}\right]_{ij}
 =
-\operatorname{MMD}_k(\widehat P_{i,t},\widehat P_{j,t}).
+\mathrm{MMD}_k(\widehat P_{i,t},\widehat P_{j,t}).
 \]
 
 After robust normalization, the two geometries are combined:
@@ -435,15 +490,17 @@ Out-of-sample performance remains the more important evidence.
 """,
 20: r"""## 7. Regime-aware portfolio optimizer
 
-For the assets selected at rebalance \(t\), estimate
+For the assets selected at rebalance \(t\), the code annualizes the trailing
+sample mean:
 
 \[
 \widehat{\boldsymbol\mu}_t
 =
-\frac{1}{L}\sum_{s=t-L}^{t-1}\mathbf r_s,
+A\frac{1}{L}\sum_{s=t-L}^{t-1}\mathbf r_s,
 \]
 
-and a regularized covariance matrix \(\widehat\Sigma_t\).
+where \(A=252\). It annualizes the sample covariance and shrinks it toward its
+diagonal to obtain \(\widehat\Sigma_t^{\mathrm{shrunk}}\).
 
 The new portfolio solves
 
@@ -454,7 +511,7 @@ The new portfolio solves
 \arg\min_{\mathbf w}
 \quad&
 -\widehat{\boldsymbol\mu}_t^\top\mathbf w
-+\gamma_t\,\mathbf w^\top\widehat\Sigma_t\mathbf w
++\gamma_t\,\mathbf w^\top\widehat\Sigma_t^{\mathrm{shrunk}}\mathbf w
 +\eta\left\|\mathbf w-\mathbf w_{t-1}\right\|_1\\
 \text{subject to}\quad&
 \mathbf 1^\top\mathbf w=1,\\
@@ -468,7 +525,7 @@ The three objective terms represent:
 \[
 \underbrace{-\widehat{\boldsymbol\mu}_t^\top\mathbf w}_{\text{reward expected return}}
 \;+\;
-\underbrace{\gamma_t\mathbf w^\top\widehat\Sigma_t\mathbf w}_{\text{penalize risk}}
+\underbrace{\gamma_t\mathbf w^\top\widehat\Sigma_t^{\mathrm{shrunk}}\mathbf w}_{\text{penalize risk}}
 \;+\;
 \underbrace{\eta\|\mathbf w-\mathbf w_{t-1}\|_1}_{\text{penalize turnover}}.
 \]
@@ -479,11 +536,13 @@ Risk aversion responds to the topological regime score:
 \gamma_t
 =
 \gamma_0
-\left(1+\alpha\max\{R_t,0\}\right).
+\left(1+\beta\max\{R_t,0\}\right).
 \]
 
-The maximum weight \(u_t\) is also reduced in high-regime states. Therefore,
-larger \(R_t\) produces a more conservative and more diversified allocation.
+Here \(\beta\) is `regime_risk_multiplier`. The maximum weight is \(0.40\) in
+the normal state and \(0.25\) when \(R_t\ge1\), but never below \(1/n_t\), which
+keeps the constraints feasible. Therefore, larger \(R_t\) produces a more
+conservative allocation.
 """,
 22: r"""## 8. Strict walk-forward backtest
 
@@ -507,12 +566,11 @@ r_{p,s}^{\mathrm{gross}}
 \mathbf w_{t_k}^\top\mathbf r_s.
 \]
 
-One-way turnover is measured by
+The implementation records the full reallocation distance
 
 \[
-\operatorname{TO}_{t_k}
+\mathrm{Q}_{t_k}
 =
-\frac12
 \left\|
 \mathbf w_{t_k}-\mathbf w_{t_{k-1}}
 \right\|_1.
@@ -521,8 +579,13 @@ One-way turnover is measured by
 If the proportional cost rate is \(c\), the rebalance cost is
 
 \[
-C_{t_k}=c\,\operatorname{TO}_{t_k}.
+C_{t_k}=c\,\mathrm{Q}_{t_k}.
 \]
+
+It is deducted from the first log return of the new holding period using
+\(r_{p,t_k}^{\mathrm{net}}\approx r_{p,t_k}^{\mathrm{gross}}-C_{t_k}\).
+Conventional one-way turnover is \(\tfrac12\mathrm{Q}_{t_k}\), so this project's
+reported convention must remain explicit.
 
 The notebook compares four strategies:
 
@@ -538,12 +601,13 @@ that differences are not caused by mismatched samples.
 """,
 26: r"""## 9. Performance, drawdown, turnover, and regime diagnostics
 
-For daily portfolio returns \(r_{p,1},\ldots,r_{p,T}\), cumulative wealth is
+For daily **log** portfolio returns \(r_{p,1},\ldots,r_{p,T}\), cumulative
+wealth is
 
 \[
 V_t
 =
-\prod_{s=1}^{t}(1+r_{p,s}),
+\exp\left(\sum_{s=1}^{t}r_{p,s}\right),
 \qquad V_0=1.
 \]
 
@@ -563,7 +627,7 @@ A\,\overline r_p,
 With daily risk-free rate \(r_{f,s}\), the annualized Sharpe ratio is
 
 \[
-\widehat{\operatorname{SR}}
+\widehat{\mathrm{SR}}
 =
 \sqrt{A}\,
 \frac{\overline{(r_p-r_f)}}{s(r_p-r_f)}.
@@ -574,15 +638,15 @@ Running peak wealth and drawdown are
 \[
 M_t=\max_{0\le u\le t}V_u,
 \qquad
-\operatorname{DD}_t=\frac{V_t}{M_t}-1.
+\mathrm{DD}_t=\frac{V_t}{M_t}-1.
 \]
 
 Maximum drawdown is
 
 \[
-\operatorname{MDD}
+\mathrm{MDD}
 =
-\min_{1\le t\le T}\operatorname{DD}_t.
+\min_{1\le t\le T}\mathrm{DD}_t.
 \]
 
 These metrics must be read together: a strategy with a high return but extreme
@@ -621,9 +685,9 @@ H_1:\;&
 “Improvement” should be specified before testing, for example:
 
 \[
-\Delta\operatorname{Sharpe}>0,\qquad
-\Delta|\operatorname{MDD}|<0,\qquad
-\Delta\operatorname{Turnover}\le 0,
+\Delta\mathrm{Sharpe}>0,\qquad
+\Delta|\mathrm{MDD}|<0,\qquad
+\Delta\mathrm{Turnover}\le 0,
 \]
 
 subject to acceptable realized return.
