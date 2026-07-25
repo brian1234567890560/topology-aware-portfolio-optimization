@@ -49,15 +49,30 @@ The vertices are trading days; their coordinates are simultaneous market returns
 
 ### Robust scaling
 
-For coordinate $q$,
+For coordinate $q$, define its sample median and median absolute deviation (MAD) by
 
 ```math
-\operatorname{MAD}_q
+\mathrm{MAD}_q
 =
-\operatorname{median}_s
+\mathrm{median}_s
 \left|
-x_{s,q}-\operatorname{median}_u(x_{u,q})
+x_{s,q}-\mathrm{median}_u(x_{u,q})
 \right|.
+```
+
+Let $s_q^{\mathrm{std}}$ be the sample standard deviation of coordinate $q$. The code chooses the scale
+
+```math
+a_q
+=
+\begin{cases}
+1.4826\,\mathrm{MAD}_q,
+&1.4826\,\mathrm{MAD}_q>\varepsilon_{\mathrm{num}},\\
+s_q^{\mathrm{std}},
+&s_q^{\mathrm{std}}>\varepsilon_{\mathrm{num}},\\
+1,
+&\text{otherwise}.
+\end{cases}
 ```
 
 The robustly standardized coordinate is
@@ -65,16 +80,18 @@ The robustly standardized coordinate is
 ```math
 \widetilde x_{s,q}
 =
-\frac{x_{s,q}-\operatorname{median}_u(x_{u,q})}
-{1.4826\,\operatorname{MAD}_q+\varepsilon_{\mathrm{num}}}.
+\frac{x_{s,q}-\mathrm{median}_u(x_{u,q})}
+{a_q}.
 ```
+
+The factor $1.4826$ makes MAD comparable to the standard deviation for Gaussian data.
 
 ## 3. Vietoris-Rips persistent homology
 
 For a metric space $(X_t,d)$ and threshold $\epsilon$, the Vietoris-Rips complex is
 
 ```math
-\operatorname{VR}_\epsilon(X_t)
+\mathrm{VR}_\epsilon(X_t)
 =
 \left\{
 \sigma\subseteq X_t:
@@ -86,22 +103,22 @@ d(\mathbf x,\mathbf y)\le\epsilon
 As $\epsilon$ increases,
 
 ```math
-\operatorname{VR}_{\epsilon_1}(X_t)
+\mathrm{VR}_{\epsilon_1}(X_t)
 \subseteq
-\operatorname{VR}_{\epsilon_2}(X_t)
+\mathrm{VR}_{\epsilon_2}(X_t)
 \subseteq\cdots.
 ```
 
-The first homology group is
+Using coefficients in the field $\mathbb F_2$, the first homology group is
 
 ```math
 H_1
 =
-\frac{\ker(\partial_1)}{\operatorname{im}(\partial_2)}.
+\frac{\ker(\partial_1)}{\mathrm{im}(\partial_2)}.
 ```
 
 - $\ker(\partial_1)$ contains closed one-dimensional cycles.
-- $\operatorname{im}(\partial_2)$ contains cycles that are boundaries of filled triangles.
+- $\mathrm{im}(\partial_2)$ contains cycles that are boundaries of filled triangles.
 - The quotient retains cycles not already filled by two-dimensional simplices.
 
 The first-homology persistence diagram is
@@ -138,11 +155,21 @@ For the robust threshold,
 ```math
 \tau_t
 =
-\operatorname{median}(\ell_t)
-+c\operatorname{MAD}(\ell_t).
+\mathrm{median}(\ell_t)
++1.4826\,c\,\mathrm{MAD}(\ell_t).
 ```
 
-For the moving-block-bootstrap threshold, blocks of the time series are resampled to preserve short-range dependence. The threshold is a selected upper quantile of bootstrap persistence.
+Here $c$ is `tda_noise_mad_multiplier`. For the moving-block-bootstrap threshold, blocks of the market-state sequence are resampled to preserve short-range dependence. If $\ell_{\max}^{*(b)}$ is the largest finite $H_1$ lifetime in bootstrap sample $b$, the implemented threshold is
+
+```math
+\tau_t
+=
+Q_q\!\left(
+\ell_{\max}^{*(1)},\ldots,\ell_{\max}^{*(B)}
+\right),
+```
+
+where $q$ is `tda_bootstrap_quantile` and $B$ is `tda_bootstrap_samples`.
 
 The code summarizes surviving loops with
 
@@ -155,6 +182,18 @@ P_{2,t}
 ```
 
 An expanding robust z-score converts this into the regime score $R_t$.
+
+```math
+R_t
+=
+\frac{
+P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})
+}{
+1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})
+}.
+```
+
+The code uses only earlier $P_{2,u}$ values in the center and scale. It returns $0$ until there are at least six earlier observations and falls back to the sample standard deviation if historical MAD is nearly zero.
 
 ## 4. Wasserstein asset distance
 
@@ -171,14 +210,14 @@ W_p(\mu_i,\mu_j)
 
 $\Pi(\mu_i,\mu_j)$ is the set of joint probability measures with marginals $\mu_i$ and $\mu_j$.
 
-The current code uses one-dimensional Wasserstein distance on standardized trailing returns.
+For one-dimensional empirical distributions, this is equivalent to integrating the difference between empirical quantile functions. The current code applies it to raw trailing log returns; it does **not** standardize each asset first.
 
 ## 5. Maximum mean discrepancy
 
 For a positive-definite kernel $k$ with feature map $\phi$, MMD is
 
 ```math
-\operatorname{MMD}_k^2(P,Q)
+\mathrm{MMD}_k^2(P,Q)
 =
 \left\|
 \mathbb E_{X\sim P}[\phi(X)]
@@ -190,18 +229,46 @@ For a positive-definite kernel $k$ with feature map $\phi$, MMD is
 Equivalently,
 
 ```math
-\operatorname{MMD}_k^2(P,Q)
+\mathrm{MMD}_k^2(P,Q)
 =
 \mathbb E[k(X,X')]
 +\mathbb E[k(Y,Y')]
 -2\mathbb E[k(X,Y)].
 ```
 
-The notebook uses a Gaussian RBF kernel and a median-distance bandwidth heuristic.
+The notebook uses the Gaussian RBF kernel
+
+```math
+k(x,y)
+=
+\exp\!\left(
+-\frac{(x-y)^2}{2h^2}
+\right),
+```
+
+where $h$ is the median positive pairwise distance in the pooled samples. The implemented finite-sample estimate includes diagonal terms:
+
+```math
+\widehat{\mathrm{MMD}}_k^2
+=
+\frac{1}{n^2}\sum_{a=1}^{n}\sum_{b=1}^{n}k(x_a,x_b)
++\frac{1}{m^2}\sum_{a=1}^{m}\sum_{b=1}^{m}k(y_a,y_b)
+-\frac{2}{nm}\sum_{a=1}^{n}\sum_{b=1}^{m}k(x_a,y_b).
+```
+
+The distance passed to clustering is $\sqrt{\max(\widehat{\mathrm{MMD}}_k^2,0)}$. This is the biased but nonnegative empirical MMD estimator used by the code.
 
 ## 6. Combined distributional geometry
 
-After scaling the Wasserstein and MMD matrices to comparable ranges, the combined distance is
+Let $s_W$ and $s_M$ be the medians of the positive upper-triangular entries of the Wasserstein and MMD distance matrices. The code normalizes
+
+```math
+\widetilde W_{ij}=\frac{W_{ij}}{s_W},
+\qquad
+\widetilde M_{ij}=\frac{M_{ij}}{s_M}.
+```
+
+The combined distance is
 
 ```math
 D_{ij}
@@ -211,7 +278,7 @@ D_{ij}
 \qquad 0\le\alpha\le1.
 ```
 
-The default weight is $\alpha=0.65$.
+The default weights are $\alpha=0.65$ for Wasserstein and $1-\alpha=0.35$ for MMD.
 
 ## 7. K-medoids clustering
 
@@ -225,6 +292,21 @@ D_{i,m_k}.
 ```
 
 Unlike Euclidean K-means, it needs only a distance matrix. Each medoid is an actual asset, which makes cluster representatives directly interpretable.
+
+The assets finally selected are not necessarily the medoids. Within each cluster, the code ranks asset $i$ by
+
+```math
+S_i
+=
+-z\!\left(
+\frac{1}{|C_k|}
+\sum_{j\in C_k}D_{ij}
+\right)
++0.25\,z(\widehat{\mathrm{SR}}_i),
+\qquad i\in C_k,
+```
+
+so it primarily favors distributional centrality with a modest in-sample Sharpe tilt.
 
 ## 8. Efficient-frontier diagnostic
 
@@ -252,6 +334,8 @@ For baseline and expanded universes, define
 
 Positive $\Delta\sigma$ means the expanded universe reaches the target return with lower estimated volatility. This is descriptive, not a formal statistical spanning test.
 
+The target grid is restricted to the overlap of the baseline and expanded universes' estimated-return ranges. Failed or infeasible numerical optimizations are recorded as missing values.
+
 ## 9. Regime-aware portfolio optimization
 
 For selected assets, the optimizer solves
@@ -260,7 +344,7 @@ For selected assets, the optimizer solves
 \begin{aligned}
 \mathbf w_t^\star\in\arg\min_{\mathbf w}\quad&
 -\widehat{\boldsymbol\mu}_t^\top\mathbf w
-+\gamma_t\mathbf w^\top\widehat\Sigma_t\mathbf w
++\gamma_t\mathbf w^\top\widehat\Sigma_t^{\mathrm{shrunk}}\mathbf w
 +\eta\|\mathbf w-\mathbf w_{t-1}\|_1\\
 \text{subject to}\quad&
 \mathbf1^\top\mathbf w=1,\\
@@ -284,11 +368,25 @@ The covariance estimator is shrunk toward its diagonal:
 \widehat\Sigma_t^{\mathrm{shrunk}}
 =
 (1-\rho_t)\widehat\Sigma_t
-+\rho_t\operatorname{diag}(\widehat\Sigma_t)
++\rho_t\mathrm{diag}(\widehat\Sigma_t)
 +\delta I.
 ```
 
-Both $\rho_t$ and the weight cap $u_t$ become more conservative in stressed regimes.
+In the current code,
+
+```math
+\rho_t
+=
+\min\!\left\{
+0.60,\,
+\max\!\left[
+0.10,\,
+0.10+0.10\max(R_t,0)
+\right]
+\right\}.
+```
+
+The normal weight cap is $0.40$ and the stressed cap is $0.25$ when $R_t\ge1$. To preserve feasibility, the implemented cap is never below $1/n_t$, where $n_t$ is the number of selected assets.
 
 ## 10. Walk-forward returns and costs
 
@@ -300,21 +398,29 @@ r_{p,s}^{\mathrm{gross}}
 \mathbf w_t^\top\mathbf r_s.
 ```
 
-The standard one-way turnover definition is
+The code records the full reallocation distance
 
 ```math
-\operatorname{TO}_t
+\mathrm{Q}_t
 =
-\frac12\|\mathbf w_t-\mathbf w_{t-1}\|_1.
+\|\mathbf w_t-\mathbf w_{t-1}\|_1.
 ```
 
 If proportional cost is $c$, then
 
 ```math
-C_t=c\,\operatorname{TO}_t.
+C_t=c\,\mathrm{Q}_t.
 ```
 
-The current implementation records the full $L^1$ weight change and applies the configured basis-point cost to that quantity. This convention should be made consistent with the one-way definition before final empirical reporting; see the limitations page.
+The cost is deducted once, from the first log return of the new holding period:
+
+```math
+r_{p,t}^{\mathrm{net}}
+\approx
+r_{p,t}^{\mathrm{gross}}-C_t.
+```
+
+Many finance texts instead define one-way turnover as $\mathrm{TO}_t=\tfrac12\mathrm Q_t$. Therefore, the current cost convention charges twice the cost that would result from multiplying the same rate $c$ by conventional one-way turnover. This must be kept explicit when comparing results.
 
 ## 11. Evaluation metrics
 
@@ -337,7 +443,7 @@ For $A=252$ trading days per year,
 The zero-risk-free-rate Sharpe estimate is
 
 ```math
-\widehat{\operatorname{SR}}
+\widehat{\mathrm{SR}}
 =
 \sqrt A\frac{\overline r_p}{s(r_p)}.
 ```
@@ -345,12 +451,12 @@ The zero-risk-free-rate Sharpe estimate is
 Drawdown is
 
 ```math
-\operatorname{DD}_t
+\mathrm{DD}_t
 =
 \frac{V_t}{\max_{0\le u\le t}V_u}-1,
 ```
 
-and maximum drawdown is $\min_t\operatorname{DD}_t$.
+and maximum drawdown is $\mathrm{MDD}=\min_t\mathrm{DD}_t$.
 
 ## 12. Research hypothesis
 
@@ -365,4 +471,3 @@ H_1:\quad&
 ```
 
 The hypothesis must be evaluated with preregistered metrics, causal model selection, and uncertainty estimates rather than a single favorable backtest.
-
