@@ -313,17 +313,37 @@ P_{2,t}
 \right)^{1/2}.
 \]
 
-The regime score compares the current summary with earlier summaries only:
+The regime score compares the current summary with earlier summaries only.
+First define the historical center
 
 \[
-R_t=\frac{P_{2,t}-\mathrm{median}_{u<t}(P_{2,u})}
-{1.4826\,\mathrm{MAD}_{u<t}(P_{2,u})}.
+m_t
+=
+\mathrm{median}\!\left(P_{2,1},\ldots,P_{2,t-1}\right)
 \]
 
-The code returns \(0\) until enough history exists and falls back to sample
-standard deviation if historical MAD vanishes. A larger \(R_t\) means that the
-recent market-state cloud contains stronger or more unusual persistent loop
-structure. This is a regime indicator, not automatically a crash prediction.
+and historical MAD
+
+\[
+a_t
+=
+\mathrm{median}_{1\le u\le t-1}
+\left|P_{2,u}-m_t\right|.
+\]
+
+Then
+
+\[
+R_t
+=
+\frac{P_{2,t}-m_t}{1.4826\,a_t}.
+\]
+
+Neither \(m_t\) nor \(a_t\) uses the current value \(P_{2,t}\). The code
+returns \(0\) until enough history exists and falls back to sample standard
+deviation if \(a_t\) vanishes. A larger \(R_t\) means that the recent
+market-state cloud contains stronger or more unusual persistent loop structure.
+This is a regime indicator, not automatically a crash prediction.
 """,
 14: r"""## 5. Distributional asset geometry: Wasserstein distance and MMD
 
